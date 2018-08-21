@@ -1,3 +1,4 @@
+import pyximport; pyximport.install()
 from enum import Enum, auto
 from cms import CMS
 from collections import Counter
