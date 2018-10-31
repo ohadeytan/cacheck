@@ -28,3 +28,7 @@ class LirsParser(Parser):
         if line and line[0] != '*':
             self.items.append(int(line.strip()))
 
+class SizedParser(Parser):
+    def parse(self, line):
+        line = line.split()
+        self.items.append((int(line[1]), int(line[2])))

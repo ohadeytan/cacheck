@@ -11,7 +11,7 @@ class Policy(object):
         self.misses = 0
         self.hits = 0
         pass
-    def record(self, key):
+    def record(self, key, size=1):
         pass
     def get_stats(self):
         return { 'name' : self.__class__.__name__, 'hits' : self.hits, 'misses' : self.misses, 'hit ratio' : self.hits / (self.hits + self.misses) } 
@@ -19,11 +19,11 @@ class Policy(object):
 class LRU(Policy):
     def __init__(self, maximum_size):
         super().__init__(maximum_size)
-
+        self.current_size = 0
         self.data = {}
         self.sentinel = Node()
 
-    def record(self, key):
+    def record(self, key, size=1):
         node = self.data.get(key)
         if node:
             self.hits += 1
@@ -31,10 +31,14 @@ class LRU(Policy):
             node.append_to_tail(self.sentinel)
         else:
             self.misses += 1
-            if len(self.data) == self.maximum_size:
+            if size > self.maximum_size:
+                return
+            self.current_size += size
+            while (self.current_size > self.maximum_size):
                 del self.data[self.sentinel.next_node.data]
+                self.current_size -= self.sentinel.next_node.size
                 self.sentinel.next_node.remove()
-            new_node = Node(key)
+            new_node = Node(key, size=size)
             new_node.append_to_tail(self.sentinel)
             self.data[key] = new_node
 
@@ -57,7 +61,7 @@ class WTinyLFU(Policy):
         self.size_window = 0
         self.size_protected = 0
 
-    def record(self, key):
+    def record(self, key, size=1):
         self.cms.increment(key)
         node = self.data.get(key)
         if not node:
@@ -144,7 +148,7 @@ class WC_WTinyLFU(AdaptiveWTinyLFU):
         self.sample_size = sample_multiplier * self.maximum_size
         self.pivot = int(pivot * self.maximum_size)
         self.increase_direction = False
-    def record(self, key):
+    def record(self, key, size=1):
         hit = super().record(key)
         if len(self.data) >= self.maximum_size:
             self.climb(hit)
@@ -171,7 +175,7 @@ class WI_WTinyLFU(AdaptiveWTinyLFU):
         self.sample = 0
         self.sample_size = 50000
         self.indicator = Indicator()
-    def record(self, key):
+    def record(self, key, size=1):
         super().record(key)
         if len(self.data) >= self.maximum_size:
             self.climb(key)
@@ -210,11 +214,12 @@ class Indicator(object):
         self.freqs.clear()
 
 class Node(object):
-    def __init__(self, data=None, status=None):
+    def __init__(self, data=None, size=1, status=None):
         self.data = data
         self.next_node = self
         self.prev_node = self
         self.status = status
+        self.size = size
     def remove(self):
         self.prev_node.next_node = self.next_node
         self.next_node.prev_node = self.prev_node
