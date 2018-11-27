@@ -105,3 +105,5 @@ venv.bak/
 
 # my ignores
 my*
+
+test\.tr
